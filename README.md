@@ -2,7 +2,7 @@
 
 A macOS voice-activated launcher for [Sesame](https://app.sesame.com/) using local wake word detection. Say **"Hey Jarvis"** to open Sesame and start talking to Miles — say **"Goodbye Jarvis"** to close it. No keyboard, no clicks.
 
-https://github.com/user-attachments/assets/placeholder-demo.mp4
+https://github.com/user-attachments/assets/925273e5-3d3a-4595-8515-70164d23004a
 
 ---
 
