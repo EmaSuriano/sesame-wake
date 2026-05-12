@@ -1,0 +1,42 @@
+[project]
+name = "hey-jarvis"
+version = "0.1.0"
+description = "Voice-activated launcher for Sesame using local wake word detection"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.11"
+dependencies = [
+  "openwakeword",
+  "pyaudio",
+  "numpy",
+  "selenium",
+  "python-dotenv",
+]
+
+[project.urls]
+Homepage = "https://github.com/emasuriano/hey-jarvis"
+Repository = "https://github.com/emasuriano/hey-jarvis"
+Issues = "https://github.com/emasuriano/hey-jarvis/issues"
+
+[project.scripts]
+hey-jarvis = "sesame_launcher:main"
+
+[dependency-groups]
+dev = [
+  "ruff>=0.15.12",
+]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = [
+  "E",   # pycodestyle errors
+  "W",   # pycodestyle warnings
+  "F",   # pyflakes
+  "I",   # isort
+  "UP",  # pyupgrade
+  "B",   # flake8-bugbear
+  "SIM", # flake8-simplify
+]
