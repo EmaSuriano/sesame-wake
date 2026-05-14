@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -22,6 +23,9 @@ from sesame_wake.logging_setup import log
 
 if TYPE_CHECKING:
     from speechbrain.inference.speaker import EncoderClassifier
+
+
+EnrollmentProgressHandler = Callable[[float, float], None]
 
 
 def _load_classifier() -> EncoderClassifier:
@@ -64,7 +68,12 @@ class SpeakerVerifier:
         return np.asarray(embedding, dtype=np.float32)
 
 
-def enroll_speaker(config: AppConfig, seconds: float | None = None) -> Path:
+def enroll_speaker(
+    config: AppConfig,
+    seconds: float | None = None,
+    *,
+    progress: EnrollmentProgressHandler | None = None,
+) -> Path:
     """Record microphone audio and save a speaker embedding for later verification."""
     duration = seconds or SPEAKER_ENROLL_SECS
     if duration <= 0:
@@ -73,7 +82,7 @@ def enroll_speaker(config: AppConfig, seconds: float | None = None) -> Path:
     log.info("Loading speaker model from %s", SPEAKER_MODEL_SOURCE)
     classifier = _load_classifier()
     log.info("Recording %.1f seconds for speaker enrollment...", duration)
-    samples = _record_microphone(duration)
+    samples = _record_microphone(duration, progress=progress)
     embedding = _extract_embedding(classifier, samples)
 
     config.speaker_profile_path.parent.mkdir(parents=True, exist_ok=True)
@@ -82,7 +91,11 @@ def enroll_speaker(config: AppConfig, seconds: float | None = None) -> Path:
     return config.speaker_profile_path
 
 
-def _record_microphone(seconds: float) -> np.ndarray:
+def _record_microphone(
+    seconds: float,
+    *,
+    progress: EnrollmentProgressHandler | None = None,
+) -> np.ndarray:
     audio = pyaudio.PyAudio()
     stream = None
     frames: list[np.ndarray] = []
@@ -97,9 +110,16 @@ def _record_microphone(seconds: float) -> np.ndarray:
             frames_per_buffer=CHUNK_SIZE,
         )
         started = time.monotonic()
-        for _ in range(total_frames):
+        next_progress_at = 0.0
+        for index in range(total_frames):
             raw = stream.read(CHUNK_SIZE, exception_on_overflow=False)
-            frames.append(np.frombuffer(raw, dtype=np.int16).copy())
+            frame = np.frombuffer(raw, dtype=np.int16).copy()
+            frames.append(frame)
+            if progress is not None:
+                now = time.monotonic()
+                if now >= next_progress_at or index == total_frames - 1:
+                    progress((index + 1) / total_frames, _audio_level(frame))
+                    next_progress_at = now + 0.1
         elapsed = time.monotonic() - started
         log.info("Captured %.1f seconds of enrollment audio.", elapsed)
     finally:
@@ -133,6 +153,13 @@ def _load_embedding(path: Path) -> np.ndarray:
 
 def _int16_to_float32(samples: np.ndarray) -> np.ndarray:
     return samples.astype(np.float32) / float(np.iinfo(np.int16).max)
+
+
+def _audio_level(frame: np.ndarray) -> float:
+    if frame.size == 0:
+        return 0.0
+    rms = np.sqrt(np.mean(frame.astype(np.float32) ** 2))
+    return min(1.0, float(rms / np.iinfo(np.int16).max))
 
 
 def _cosine_similarity(left: np.ndarray, right: np.ndarray) -> float:

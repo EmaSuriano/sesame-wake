@@ -257,7 +257,7 @@ class SesameWakeApp(App[None]):
                 self.set_status,
                 f"Recording speaker profile for {SPEAKER_ENROLL_SECS:.0f}s",
             )
-            path = enroll_speaker(self.config)
+            path = enroll_speaker(self.config, progress=self._handle_enrollment_progress)
             self.call_from_thread(self.set_status, "Speaker enrollment finished")
             self.call_from_thread(self.add_log, f"Saved speaker profile: {path}")
         except Exception as exc:
@@ -267,6 +267,11 @@ class SesameWakeApp(App[None]):
         finally:
             self.call_from_thread(self._start_listener)
             self.busy = False
+
+    def _handle_enrollment_progress(self, progress: float, level: float) -> None:
+        percent = min(100, max(0, round(progress * 100)))
+        self.call_from_thread(self.set_status, f"Recording speaker profile {percent}%")
+        self.call_from_thread(self.set_input_level, level)
 
     def _apply_listener_event(self, event: ListenerEvent) -> None:
         if event.kind == "ready":
