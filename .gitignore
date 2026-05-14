@@ -19,3 +19,4 @@ sesame_wake.log
 .DS_Store/
 
 models/*.onnx
+models/*.tflite
