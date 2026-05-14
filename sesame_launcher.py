@@ -1,14 +1,3 @@
-# /// script
-# requires-python = ">=3.11"
-# dependencies = [
-#   "openwakeword",
-#   "pyaudio",
-#   "numpy",
-#   "selenium",
-#   "python-dotenv",
-# ]
-# ///
-
 """
 Wake word launcher for Sesame (dedicated Chrome profile).
 
@@ -19,8 +8,8 @@ Wake word:
 Configuration:
 - Copy .env.example to .env and set ``SELENIUM_PROFILE`` and ``WAKE_MODEL``.
 
-Implementation lives in the `sesame_wake` package; this file stays as a
-PEP 723 runnable script and compatibility entry for tooling.
+Implementation lives in the `sesame_wake` package; this file is kept as a
+compatibility entry point alongside the ``sesame-wake`` console script.
 """
 
 import sys

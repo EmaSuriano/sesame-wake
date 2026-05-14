@@ -173,3 +173,14 @@ Stacktrace:
 2026-05-14 12:13:59 [INFO] 🎯 Detected "ok_jarvis" (0.78) → CLOSE
 2026-05-14 12:13:59 [INFO] Closing Sesame...
 2026-05-14 12:13:59 [INFO] ✅ Sesame closed.
+2026-05-14 12:33:00 [INFO] 🎙  Listening for "ok_jarvis" (toggle open/close)
+2026-05-14 12:33:00 [INFO] Press Ctrl+C to quit.
+2026-05-14 12:33:30 [INFO] 🎙  Listening for "ok_jarvis" (toggle open/close)
+2026-05-14 12:33:30 [INFO] Press Ctrl+C to quit.
+2026-05-14 12:33:33 [INFO] 🎯 Detected "ok_jarvis" (0.90) → OPEN
+2026-05-14 12:33:33 [INFO] Opening Sesame (attempt 1/3)...
+2026-05-14 12:33:33 [DEBUG] Browser not alive — creating new driver.
+2026-05-14 12:33:36 [INFO] ✅ Clicked Miles!
+2026-05-14 12:34:07 [INFO] 🎯 Detected "ok_jarvis" (0.92) → CLOSE
+2026-05-14 12:34:07 [INFO] Closing Sesame...
+2026-05-14 12:34:07 [INFO] ✅ Sesame closed.

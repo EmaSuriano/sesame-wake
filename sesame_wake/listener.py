@@ -26,18 +26,18 @@ def _load_wake_model() -> tuple[Model, str]:
     vad = 0.5
     errors: list[str] = []
 
-    # openWakeWord expects str paths, not pathlib.Path (older code used ``in`` on list items).
+    # openWakeWord expects str paths, not pathlib.Path.
     builders: list[tuple[str, object]] = [
         (
-            "wakeword_models+[onnx]+inference_framework=onnx",
+            "wakeword_model_paths+inference_framework=onnx",
             lambda p=onnx_path: Model(
-                wakeword_models=[p],
+                wakeword_model_paths=[p],
                 vad_threshold=vad,
                 inference_framework="onnx",
             ),
         ),
         (
-            "wakeword_model_paths (0.4.x)",
+            "wakeword_model_paths (no inference_framework)",
             lambda p=onnx_path: Model(wakeword_model_paths=[p], vad_threshold=vad),
         ),
     ]
