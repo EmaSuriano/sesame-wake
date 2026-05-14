@@ -2,7 +2,7 @@
 
 Voice-activated launcher for [Sesame](https://app.sesame.com/): local wake-word detection with [openWakeWord](https://github.com/dscripka/openWakeWord), then Selenium drives Chrome to open or close the app. **You must supply your own** openWakeWord-compatible `.onnx` wake model (see `.env`); a large community collection is maintained in [home-assistant-wakewords-collection](https://github.com/fwartner/home-assistant-wakewords-collection/tree/main).
 
-https://github.com/user-attachments/assets/placeholder-demo.mp4
+https://github.com/user-attachments/assets/925273e5-3d3a-4595-8515-70164d23004a
 
 ---
 
