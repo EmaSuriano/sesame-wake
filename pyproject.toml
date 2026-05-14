@@ -1,7 +1,7 @@
 [project]
-name = "hey-jarvis"
+name = "sesame-wake"
 version = "0.1.0"
-description = "Voice-activated launcher for Sesame using local wake word detection"
+description = "Sesame voice launcher: bring-your-own openWakeWord ONNX + Chrome"
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.11"
@@ -14,12 +14,19 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/emasuriano/hey-jarvis"
-Repository = "https://github.com/emasuriano/hey-jarvis"
-Issues = "https://github.com/emasuriano/hey-jarvis/issues"
+Homepage = "https://github.com/emasuriano/sesame-wake"
+Repository = "https://github.com/emasuriano/sesame-wake"
+Issues = "https://github.com/emasuriano/sesame-wake/issues"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["sesame_wake"]
 
 [project.scripts]
-hey-jarvis = "sesame_launcher:main"
+sesame-wake = "sesame_wake.cli:main"
 
 [dependency-groups]
 dev = [

@@ -1,6 +1,6 @@
-# 🎙️ hey-jarvis
+# sesame-wake
 
-A macOS voice-activated launcher for [Sesame](https://app.sesame.com/) using local wake word detection. Say **"Hey Jarvis"** to open Sesame and start talking to Miles — say **"Goodbye Jarvis"** to close it. No keyboard, no clicks.
+Voice-activated launcher for [Sesame](https://app.sesame.com/): local wake-word detection with [openWakeWord](https://github.com/dscripka/openWakeWord), then Selenium drives Chrome to open or close the app. **You must supply your own** openWakeWord-compatible `.onnx` wake model (see `.env`); a large community collection is maintained in [home-assistant-wakewords-collection](https://github.com/fwartner/home-assistant-wakewords-collection/tree/main).
 
 https://github.com/user-attachments/assets/placeholder-demo.mp4
 
@@ -8,9 +8,9 @@ https://github.com/user-attachments/assets/placeholder-demo.mp4
 
 ## How It Works
 
-The script runs a local wake word detection loop using [openWakeWord](https://github.com/dscripka/openWakeWord). Audio is captured from your microphone in real time, fed into the model, and when a wake word is detected above the confidence threshold, Selenium automates Chrome to open or close Sesame.
+Audio is captured from your microphone in real time, fed into the wake model, and when the score is above the threshold, Selenium toggles Sesame in a dedicated Chrome profile.
 
-All processing is **on-device** — no audio is sent to any server.
+All wake-word processing is **on-device** — no audio is sent to any server.
 
 ```
 Microphone → openWakeWord → threshold check → Selenium → Sesame
@@ -20,10 +20,10 @@ Microphone → openWakeWord → threshold check → Selenium → Sesame
 
 ## Requirements
 
-- macOS (uses `afplay` for audio feedback)
-- Python 3.11+
-- Google Chrome
-- [ChromeDriver](https://googlechromelabs.github.io/chrome-for-testing/) matching your Chrome version
+- **Python 3.11+**
+- **Google Chrome** (Selenium uses your Chrome install)
+- A working **microphone** as the default input device
+- On macOS, **`afplay`** is used for optional MP3 feedback sounds; Linux/Windows use `aplay` / PowerShell with varying format support (MP3 is most reliable on macOS)
 
 ---
 
@@ -32,9 +32,11 @@ Microphone → openWakeWord → threshold check → Selenium → Sesame
 ### 1. Clone the repo
 
 ```bash
-git clone https://github.com/emasuriano/hey-jarvis
-cd hey-jarvis
+git clone https://github.com/emasuriano/sesame-wake.git
+cd sesame-wake
 ```
+
+*(If the GitHub repository is still under another name, use that URL instead.)*
 
 ### 2. Install dependencies
 
@@ -56,117 +58,114 @@ pip install openwakeword pyaudio numpy selenium python-dotenv
 cp .env.example .env
 ```
 
-Edit `.env` and set your Chrome profile path:
+Edit `.env` and set **`SELENIUM_PROFILE`**, **`WAKE_MODEL`** (the ONNX filename inside `models/`), and create a Chrome profile as below.
 
 ```env
 SELENIUM_PROFILE=/Users/your-username/selenium-sesame-profile
+WAKE_MODEL=wakeword.onnx
 ```
+
+That loads `models/wakeword.onnx` (you can also set `WAKE_MODEL=wakeword.onnx`).
+
+**Wake models:** This project does **not** bundle or load openWakeWord’s built-in wake checkpoints. Download an `.onnx` from the community [home-assistant-wakewords-collection](https://github.com/fwartner/home-assistant-wakewords-collection/tree/main) (or train your own with the [openWakeWord Colab](https://colab.research.google.com/drive/1q1oe2zOyZp7UsB3jJiQ1IFn8z5YfjwEb)), save it as `models/<name>.onnx`, and set **`WAKE_MODEL`** to `<name>` (or the full filename).
 
 > **Tip:** Using a dedicated Chrome profile (separate from your main one) avoids conflicts and keeps Sesame's session persistent between runs.
 
 ### 4. Create a dedicated Chrome profile
 
-Run Chrome once with the profile path to initialize it, then log in to Sesame manually so the session is saved:
+**macOS example** — run Chrome once with the profile path, log in to Sesame, then close the window:
 
 ```bash
 /Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome \
   --user-data-dir=/Users/your-username/selenium-sesame-profile
 ```
 
-Log in to [app.sesame.com](https://app.sesame.com) inside that window, then close it. The script will reuse this session from now on.
+On Linux or Windows, start Chrome with the same `--user-data-dir` idea using your install path.
 
-> ⚠️ Logging into Sesame allows you to have sessions of 30 minutes, instead of 5 minutes for guest users.
+Log in to [app.sesame.com](https://app.sesame.com) inside that window, then close it. The launcher reuses this session on the next run.
 
-### 5. Add the custom wake word model
-
-The `goodbye_jarvis.onnx` model is included in the repo under `models/` — no training needed. If you'd like to retrain it or create your own variant, see [Training a Custom Wake Word](#training-a-custom-wake-word).
+> Logging into Sesame allows longer sessions than guest use.
 
 ---
 
 ## Usage
 
+From the repo root, install the project (uses `uv.lock`) then run the console script:
+
 ```bash
-hey-jarvis
+uv sync
+sesame-wake
 ```
 
-Or via uv without installing:
+Or run the PEP 723 entry script (resolves its own dependencies from the script header, which may differ from `uv.lock`):
 
 ```bash
 uv run sesame_launcher.py
 ```
 
+Or the package module:
+
+```bash
+uv run python -m sesame_wake.cli
 ```
-⬇️  Downloading models (first run only)...
-🎙  Listening for "hey_jarvis" (open)
-🎙  Listening for "goodbye_jarvis" (close)
+
+Sample log output:
+
+```
+🎙  Listening for "wakeword" (toggle open/close)
 Press Ctrl+C to quit.
 ```
 
-| Voice command | Action |
-|---|---|
-| **"Hey Jarvis"** | Opens Sesame in Chrome and clicks the Miles button |
-| **"Goodbye Jarvis"** | Closes the browser session |
+The quoted wake string is the **model key** openWakeWord uses (often the `.onnx` filename stem).
 
-Press `Ctrl+C` to stop the script.
+Only your **`models/<WAKE_MODEL>.onnx`** wake network is loaded. This launcher does **not** call openWakeWord’s bulk `download_models()` helper (that can pull many assets); use **`uv sync`** with this repo’s `uv.lock` so the wheel includes the shared preprocessor weights your install expects.
+
+| Trigger | Action |
+|---|---|
+| **Wake score above threshold** | Opens Sesame (if closed) or closes the browser session (if open) |
+
+Press `Ctrl+C` to stop.
 
 ---
 
-## Training a Custom Wake Word
+## Wake models (bring your own ONNX)
 
-The `goodbye_jarvis.onnx` model is already included — you don't need to train anything to get started. This section is for cases where you want to retrain it (e.g. improve accuracy for your voice) or swap in a different wake word entirely.
+1. Obtain an openWakeWord-compatible `.onnx` file, for example from the community [home-assistant-wakewords-collection](https://github.com/fwartner/home-assistant-wakewords-collection/tree/main).
+2. Copy it into this repo’s `models/` directory as e.g. `models/wakeword.onnx`.
+3. Set **`WAKE_MODEL=wakeword`** in `.env` (stem or full `wakeword.onnx` name).
 
-### Option A: Google Colab (free, recommended)
-
-1. Open the official notebook:
-   [colab.research.google.com/drive/1q1oe2zOyZp7UsB3jJiQ1IFn8z5YfjwEb](https://colab.research.google.com/drive/1q1oe2zOyZp7UsB3jJiQ1IFn8z5YfjwEb)
-
-2. Set your target phrase to:
-   ```
-   good_bye_jar_vis
-   ```
-   > Underscores help the TTS pronounce each syllable clearly and consistently across synthetic voices. If the result sounds off, try `gud_by_jar_vis` or `good_bye_jhar_vis`.
-
-3. Run all cells. Training takes 30–60 minutes depending on Colab availability.
-
-4. Download the exported `.onnx` file and place it at `models/goodbye_jarvis.onnx`.
-
-### Option B: Outspoken (paid, ~€1)
-
-[outspoken.cloud](https://outspoken.cloud) — enter your phrase, wait ~45 minutes, download the `.onnx`. The first model is free. Good option if Colab is slow or unavailable.
-
-### Option C: Local training with Docker
-
-For full control and reproducibility, use [openwakeword-training](https://github.com/CoreWorxLab/openwakeword-training). Requires Docker and a CUDA-capable GPU. Training takes 4–8 hours.
+To train a brand-new phrase from scratch, use the [openWakeWord Colab notebook](https://colab.research.google.com/drive/1q1oe2zOyZp7UsB3jJiQ1IFn8z5YfjwEb) or the [openWakeWord](https://github.com/dscripka/openWakeWord) docs. Phonetic spellings with underscores often work better for synthetic training data.
 
 ---
 
 ## Configuration
 
-All tuneable values are at the top of `sesame_launcher.py`:
-
-| Variable | Default | Description |
+| Setting | Where | Description |
 |---|---|---|
-| `OPEN_WORD` | `"hey_jarvis"` | Built-in openWakeWord model name |
-| `CLOSE_WORD` | `"goodbye_jarvis"` | Key name for the custom model |
-| `CLOSE_MODEL` | `"./models/goodbye_jarvis.onnx"` | Path to the custom `.onnx` file |
-| `AGENT_NAME` | `"Miles"` | Sesame agent to click (`Miles` or `Maya`) |
-| `THRESHOLD` | `0.5` | Detection confidence threshold (0.0–1.0) |
-| `BUTTON_TIMEOUT` | `15` | Seconds to wait for the button to appear |
-| `CHUNK_SIZE` | `1280` | Audio frames per model prediction (~80ms) |
+| `SELENIUM_PROFILE` | `.env` | Chrome `--user-data-dir` (required) |
+| `WAKE_MODEL` | `.env` | **Required.** ONNX filename for `models/<name>.onnx` (stem or `name.onnx`). |
+| Thresholds, timeouts, agent name, … | `sesame_wake/config.py` | Edit constants or extend with env reads as needed. |
 
-**Tuning the threshold:** Lower values (`0.3`) make detection more sensitive but increase false positives. Higher values (`0.7`) reduce false positives but may miss quieter speech.
+**Tuning the threshold:** Lower values (`0.3`) increase sensitivity and false positives. Higher values (`0.7`) reduce false positives but may miss quieter speech.
 
 ---
 
 ## Project Structure
 
 ```
-hey-jarvis/
-├── sesame_launcher.py   # Main script
-├── models/
-│   └── goodbye_jarvis.onnx  # Pretrained custom model (included)
-├── .env                 # Local config (not committed)
-├── .env.example         # Template for .env
+sesame-wake/
+├── sesame_wake/
+│   ├── config.py        # Env + constants, validate_config
+│   ├── logging_setup.py
+│   ├── sounds.py
+│   ├── session.py       # Selenium SessionManager
+│   ├── listener.py      # Wake loop (PyAudio + openWakeWord)
+│   └── cli.py           # main()
+├── sesame_launcher.py   # PEP 723 entry + `uv run` shim
+├── models/              # Put your .onnx wake model here (see .env.example)
+├── assets/              # Optional feedback MP3s
+├── .env
+├── .env.example
 ├── pyproject.toml
 ├── .gitignore
 └── README.md
@@ -176,28 +175,36 @@ hey-jarvis/
 
 ## Troubleshooting
 
+**openWakeWord missing preprocessor files (melspectrogram / embedding)**
+
+- Prefer **`uv sync`** + **`sesame-wake`** so versions match `uv.lock`. If you use **`uv run sesame_launcher.py`**, the PEP 723 block may resolve a different openWakeWord build; align it with `pyproject.toml` or run a one-off download from upstream docs if your build expects extra files on disk.
+
 **Wake word not being detected**
-- Lower `THRESHOLD` to `0.3` and test again.
-- Make sure your microphone is set as the system default input.
-- Try retraining with phonetic spelling (e.g. `good_bye_jar_vis`).
+
+- Lower `THRESHOLD` in `sesame_wake/config.py` and test again.
+- Use a default input device that matches the mic you are speaking into.
+- For custom models, confirm `WAKE_MODEL` and `models/<name>.onnx` exist; inspect `model.predict(frame)` keys if scores stay at zero.
 
 **Chrome fails to open**
-- Verify ChromeDriver is installed and matches your Chrome version: `chromedriver --version` vs `Google Chrome --version`.
-- Make sure `SELENIUM_PROFILE` in `.env` points to an existing directory.
 
-**`goodbye_jarvis` key not found in predictions**
-- Add `print(predictions)` after `model.predict(frame)` to inspect the actual key names.
-- The key is derived from the filename stem — rename your `.onnx` file if needed so the stem matches `CLOSE_WORD`.
+- Ensure Chrome is installed and Selenium can launch it (driver requirements depend on your Selenium/Chrome version).
+- Confirm `SELENIUM_PROFILE` in `.env` points at an existing directory.
+
+**Wrong prediction key in logs**
+
+- The string logged is the internal **model key** (often the ONNX stem). Use that key when debugging `predict` output.
 
 **Sesame button not found**
-- The `aria-label` selector may have changed. Inspect the button in Chrome DevTools and update `AGENT_SELECTOR` in the script.
+
+- The `aria-label` selector may have changed. Inspect the button in Chrome DevTools and update `AGENT_SELECTOR` / `AGENT_NAME` in `sesame_wake/config.py`.
 
 ---
 
 ## Acknowledgements
 
-- [openWakeWord](https://github.com/dscripka/openWakeWord) by David Scripka — the on-device wake word engine that powers this project.
-- [Sesame](https://app.sesame.com/) — the voice AI this launcher is built for.
+- [openWakeWord](https://github.com/dscripka/openWakeWord) by David Scripka.
+- [home-assistant-wakewords-collection](https://github.com/fwartner/home-assistant-wakewords-collection) — community wake ONNX models.
+- [Sesame](https://app.sesame.com/).
 
 ---
 
