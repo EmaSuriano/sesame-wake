@@ -14,12 +14,27 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Run the original log-only listener instead of the terminal UI.",
     )
+    parser.add_argument(
+        "--enroll-speaker",
+        nargs="?",
+        const=0.0,
+        type=float,
+        metavar="SECONDS",
+        help="Record a local speaker profile. Defaults to SPEAKER_ENROLL_SECS.",
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
     config = load_config()
+
+    if args.enroll_speaker is not None:
+        from sesame_wake.speaker import enroll_speaker
+
+        seconds = args.enroll_speaker or None
+        enroll_speaker(config, seconds)
+        return
 
     if not args.plain:
         from sesame_wake.tui import run_tui

@@ -11,7 +11,7 @@ from textual.binding import Binding
 from textual.containers import Container, Horizontal, Vertical
 from textual.widgets import Footer, Header, ProgressBar, RichLog, Static
 
-from sesame_wake.config import THRESHOLD, AppConfig
+from sesame_wake.config import SPEAKER_ENROLL_SECS, THRESHOLD, AppConfig
 from sesame_wake.listener import ListenerEvent, run_listener
 from sesame_wake.logging_setup import log
 from sesame_wake.session import SessionManager
@@ -46,7 +46,7 @@ class SesameWakeApp(App[None]):
     }
 
     #status-panel {
-        height: 8;
+        height: 9;
     }
 
     #score-panel {
@@ -67,7 +67,7 @@ class SesameWakeApp(App[None]):
     }
 
     .label {
-        width: 14;
+        width: 16;
         color: $text-muted;
     }
 
@@ -93,6 +93,7 @@ class SesameWakeApp(App[None]):
 
     BINDINGS: ClassVar = [
         Binding("t", "toggle", "Toggle Sesame"),
+        Binding("e", "enroll_speaker", "Enroll Speaker"),
         Binding("q", "quit", "Quit"),
     ]
 
@@ -114,6 +115,14 @@ class SesameWakeApp(App[None]):
                 yield Static("Starting listener", id="status")
                 yield self._row("Browser", Static("unknown", id="browser"))
                 yield self._row("Wake model", Static(self.config.wake_model_path.name))
+                yield self._row(
+                    "Speaker profile",
+                    Static(
+                        self.config.speaker_profile_path.name
+                        if self.config.speaker_verification_enabled
+                        else "Not set"
+                    ),
+                )
                 yield self._row("Profile", Static(self.config.selenium_profile))
             with Vertical(classes="panel", id="score-panel"), Horizontal():
                 with Vertical(classes="meter"):
@@ -132,8 +141,7 @@ class SesameWakeApp(App[None]):
 
     def on_mount(self) -> None:
         self._install_log_capture()
-        self.listener = Thread(target=self._listener_worker, name="sesame-listener", daemon=True)
-        self.listener.start()
+        self._start_listener()
         self.set_interval(1.5, self.refresh_browser_status)
 
     def on_unmount(self) -> None:
@@ -149,6 +157,15 @@ class SesameWakeApp(App[None]):
         self.busy = True
         self.set_status("Toggling Sesame")
         Thread(target=self._toggle_worker, name="sesame-manual-toggle", daemon=True).start()
+
+    def action_enroll_speaker(self) -> None:
+        if self.busy:
+            return
+        self.busy = True
+        self.set_status("Starting speaker enrollment")
+        Thread(
+            target=self._enroll_speaker_worker, name="sesame-speaker-enroll", daemon=True
+        ).start()
 
     def refresh_browser_status(self) -> None:
         if self.busy or self.status_check_running:
@@ -181,6 +198,13 @@ class SesameWakeApp(App[None]):
 
     def handle_listener_event(self, event: ListenerEvent) -> None:
         self.call_from_thread(self._apply_listener_event, event)
+
+    def _start_listener(self) -> None:
+        if self.listener and self.listener.is_alive():
+            return
+        self.stop_event = Event()
+        self.listener = Thread(target=self._listener_worker, name="sesame-listener", daemon=True)
+        self.listener.start()
 
     def _browser_status_worker(self) -> None:
         try:
@@ -220,6 +244,30 @@ class SesameWakeApp(App[None]):
         finally:
             self.busy = False
 
+    def _enroll_speaker_worker(self) -> None:
+        try:
+            from sesame_wake.speaker import enroll_speaker
+
+            self.call_from_thread(self.add_log, "Pausing listener for speaker enrollment")
+            self.stop_event.set()
+            if self.listener:
+                self.listener.join(timeout=3)
+
+            self.call_from_thread(
+                self.set_status,
+                f"Recording speaker profile for {SPEAKER_ENROLL_SECS:.0f}s",
+            )
+            path = enroll_speaker(self.config)
+            self.call_from_thread(self.set_status, "Speaker enrollment finished")
+            self.call_from_thread(self.add_log, f"Saved speaker profile: {path}")
+        except Exception as exc:
+            log.exception("Speaker enrollment failed")
+            self.call_from_thread(self.set_status, "Speaker enrollment failed")
+            self.call_from_thread(self.add_log, f"[red]ERROR:[/] {exc}")
+        finally:
+            self.call_from_thread(self._start_listener)
+            self.busy = False
+
     def _apply_listener_event(self, event: ListenerEvent) -> None:
         if event.kind == "ready":
             self.set_status(event.message)
@@ -232,6 +280,13 @@ class SesameWakeApp(App[None]):
             self.busy = True
             self.set_status("Wake detected")
             self.add_log(f"{event.message} ({event.score:.2f})")
+        elif event.kind == "speaker_verified" and event.score is not None:
+            self.set_status("Speaker verified")
+            self.add_log(f"{event.message} ({event.score:.2f})")
+        elif event.kind == "speaker_rejected" and event.score is not None:
+            self.busy = False
+            self.set_status("Wake rejected")
+            self.add_log(f"[yellow]{event.message} ({event.score:.2f})[/]")
         elif event.kind == "toggled":
             self.busy = False
             self.set_status(event.message)

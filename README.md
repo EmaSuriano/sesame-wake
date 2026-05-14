@@ -12,10 +12,12 @@ https://github.com/user-attachments/assets/925273e5-3d3a-4595-8515-70164d23004a
 
 - Captures microphone audio locally with PyAudio.
 - Runs wake-word inference with openWakeWord.
+- Optionally verifies the speaker against a local enrolled voice profile before toggling.
 - Shows a Textual terminal UI with wake score, mic level, browser state, and recent events.
 - Toggles Sesame through Selenium in a dedicated Chrome profile.
 
-Wake-word processing stays on-device; microphone audio is not sent to a server by this app.
+Wake-word processing and speaker verification stay on-device; microphone audio is not sent to
+a server by this app. The speaker model may be downloaded the first time you enroll or verify.
 
 ## Requirements
 
@@ -49,6 +51,7 @@ Edit `.env`:
 ```env
 SELENIUM_PROFILE=/Users/your-username/selenium-sesame-profile
 WAKE_MODEL=wakeword.onnx
+SPEAKER_VERIFICATION=false
 ```
 
 Download or train an openWakeWord-compatible ONNX model, then place it under `models/`:
@@ -86,6 +89,7 @@ Controls:
 | Key | Action |
 |---|---|
 | `t` | Toggle Sesame manually |
+| `e` | Enroll speaker profile |
 | `q` | Quit |
 
 The UI shows:
@@ -113,6 +117,40 @@ The compatibility shim still works:
 uv run sesame_launcher.py
 ```
 
+## Speaker Verification
+
+Speaker verification adds a local voice match before the app opens or closes Sesame. It is meant
+to reduce accidental or casual use by other people nearby; it is not secure authentication and may
+be fooled by a recording of your voice.
+
+First enroll your voice:
+
+```bash
+uv run sesame-wake --enroll-speaker
+```
+
+You can also press `e` in the Textual UI. The app pauses wake listening, records the speaker
+profile, saves it, and then resumes listening.
+
+Speak naturally for the enrollment window. You can override the duration in seconds:
+
+```bash
+uv run sesame-wake --enroll-speaker 30
+```
+
+Then enable verification in `.env`:
+
+```env
+SPEAKER_VERIFICATION=true
+SPEAKER_PROFILE=profiles/speaker.npy
+SPEAKER_THRESHOLD=0.55
+SPEAKER_WINDOW_SECS=3.0
+SPEAKER_ENROLL_SECS=20.0
+```
+
+Higher `SPEAKER_THRESHOLD` values reject more non-matching voices but may also reject you in noisy
+conditions. Lower values are more forgiving but less protective.
+
 ## Configuration
 
 Required `.env` settings:
@@ -121,6 +159,11 @@ Required `.env` settings:
 |---|---|
 | `SELENIUM_PROFILE` | Chrome `--user-data-dir` path used by Selenium |
 | `WAKE_MODEL` | ONNX filename inside `models/` |
+| `SPEAKER_VERIFICATION` | Optional `true`/`false` speaker check before toggling |
+| `SPEAKER_PROFILE` | Local `.npy` voice profile created by `--enroll-speaker` |
+| `SPEAKER_THRESHOLD` | Cosine similarity required to accept the speaker |
+| `SPEAKER_WINDOW_SECS` | Recent microphone audio used for verification after wake detection |
+| `SPEAKER_ENROLL_SECS` | Default enrollment recording duration |
 
 Runtime constants live in `sesame_wake/config.py`.
 

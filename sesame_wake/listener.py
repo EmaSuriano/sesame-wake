@@ -1,6 +1,7 @@
 """Microphone loop and openWakeWord inference."""
 
 import time
+from collections import deque
 from collections.abc import Callable
 from contextlib import suppress
 from dataclasses import dataclass
@@ -15,11 +16,13 @@ from sesame_wake.config import (
     COOLDOWN_SECS,
     NEAR_MISS_THRESHOLD,
     SAMPLE_RATE,
+    SPEAKER_THRESHOLD,
     THRESHOLD,
     AppConfig,
 )
 from sesame_wake.logging_setup import log
 from sesame_wake.session import SessionManager
+from sesame_wake.speaker import SpeakerVerifier
 
 
 @dataclass(frozen=True)
@@ -52,6 +55,10 @@ def run_listener(
     stop_event: Event | None = None,
 ) -> None:
     model, score_key = _load_wake_model(config)
+    verifier = SpeakerVerifier(config) if config.speaker_verification_enabled else None
+    audio_frames = deque[np.ndarray](
+        maxlen=max(1, int((SPEAKER_THRESHOLD * SAMPLE_RATE) / CHUNK_SIZE))
+    )
 
     audio = pyaudio.PyAudio()
     stream = None
@@ -79,6 +86,7 @@ def run_listener(
                     ListenerEvent("input_level", "Microphone level updated", _audio_level(frame)),
                 )
                 level_emit_at = now + 0.1
+            audio_frames.append(frame.copy())
             score = model.predict(frame).get(score_key, 0)
             _emit(events, ListenerEvent("score", "Wake score updated", float(score)))
 
@@ -88,6 +96,32 @@ def run_listener(
                     events,
                     ListenerEvent("detected", f'Detected "{score_key}"', float(score)),
                 )
+                if verifier is not None:
+                    verified, similarity = verifier.verify(np.concatenate(audio_frames))
+                    if not verified:
+                        log.warning(
+                            "Rejected wake word: speaker similarity %.2f below threshold %.2f",
+                            similarity,
+                            verifier.threshold,
+                        )
+                        _emit(
+                            events,
+                            ListenerEvent(
+                                "speaker_rejected",
+                                "Wake word rejected: speaker did not match",
+                                similarity,
+                            ),
+                        )
+                        model.reset()
+                        time.sleep(COOLDOWN_SECS)
+                        continue
+
+                    log.info("Speaker verified (similarity %.2f)", similarity)
+                    _emit(
+                        events,
+                        ListenerEvent("speaker_verified", "Speaker verified", similarity),
+                    )
+
                 action = session.toggle()
                 _emit(
                     events,

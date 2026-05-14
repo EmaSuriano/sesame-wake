@@ -12,6 +12,7 @@ dependencies = [
   "selenium",
   "python-dotenv",
   "textual>=8.2.6",
+  "speechbrain>=1.0.3",
 ]
 
 [project.urls]

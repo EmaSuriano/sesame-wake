@@ -25,8 +25,31 @@ COOLDOWN_SECS = 2
 CHUNK_SIZE = 1280
 SAMPLE_RATE = 16000
 LOG_FILE = "sesame_wake.log"
+SPEAKER_MODEL_SOURCE = "speechbrain/spkrec-ecapa-voxceleb"
+SPEAKER_MODEL_CACHE = Path.home() / ".cache" / "sesame-wake" / "speechbrain-spkrec-ecapa-voxceleb"
+SPEAKER_THRESHOLD = 0.55
+SPEAKER_WINDOW_SECS = 3.0
+SPEAKER_ENROLL_SECS = 20.0
 
 _HINT_URL = "https://github.com/fwartner/home-assistant-wakewords-collection/tree/main"
+_SPEAKER_PROFILE_DEFAULT = _REPO_ROOT / "profiles" / "speaker.npy"
+
+
+def _env_bool(name: str, *, default: bool = False) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _env_float(name: str, *, default: float) -> float:
+    value = os.getenv(name)
+    if value is None or not value.strip():
+        return default
+    try:
+        return float(value)
+    except ValueError as e:
+        raise ValueError(f"{name} must be a number") from e
 
 
 @dataclass(frozen=True)
@@ -35,6 +58,8 @@ class AppConfig:
     wake_model_path: Path
     start_sound: Path
     end_sound: Path
+    speaker_verification_enabled: bool
+    speaker_profile_path: Path
 
 
 def load_config() -> AppConfig:
@@ -54,6 +79,7 @@ def load_config() -> AppConfig:
 
     start_sound = _ASSETS_DIR / "start_call.mp3"
     end_sound = _ASSETS_DIR / "end_call.mp3"
+    speaker_profile = Path(os.getenv("SPEAKER_PROFILE", str(_SPEAKER_PROFILE_DEFAULT))).expanduser()
 
     for path in (start_sound, end_sound):
         if not path.is_file():
@@ -64,4 +90,6 @@ def load_config() -> AppConfig:
         wake_model_path=model_path,
         start_sound=start_sound,
         end_sound=end_sound,
+        speaker_verification_enabled=_env_bool("SPEAKER_VERIFICATION"),
+        speaker_profile_path=speaker_profile,
     )
