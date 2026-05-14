@@ -97,6 +97,15 @@ uv sync
 sesame-wake
 ```
 
+The default command opens a terminal UI with wake-score status, recent events, and browser state.
+Press `t` to toggle Sesame manually, or `q` to quit.
+
+For the original log-only mode:
+
+```bash
+sesame-wake --plain
+```
+
 Or run the PEP 723 entry script (resolves its own dependencies from the script header, which may differ from `uv.lock`):
 
 ```bash
@@ -116,7 +125,7 @@ Sample log output:
 Press Ctrl+C to quit.
 ```
 
-The quoted wake string is the **model key** openWakeWord uses (often the `.onnx` filename stem).
+In plain mode, the quoted wake string is the **model key** openWakeWord uses (often the `.onnx` filename stem).
 
 Only your **`models/<WAKE_MODEL>.onnx`** wake network is loaded. This launcher does **not** call openWakeWord’s bulk `download_models()` helper (that can pull many assets); use **`uv sync`** with this repo’s `uv.lock` so the wheel includes the shared preprocessor weights your install expects.
 
@@ -146,7 +155,7 @@ To train a brand-new phrase from scratch, use the [openWakeWord Colab notebook](
 | `WAKE_MODEL` | `.env` | **Required.** ONNX filename for `models/<name>.onnx` (stem or `name.onnx`). |
 | Thresholds, timeouts, agent name, … | `sesame_wake/config.py` | Edit constants or extend with env reads as needed. |
 
-**Tuning the threshold:** Lower values (`0.3`) increase sensitivity and false positives. Higher values (`0.7`) reduce false positives but may miss quieter speech.
+**Tuning the threshold:** Lower values (`0.5`) increase sensitivity and false positives. Higher values (`0.8`) reduce false positives but may miss quieter speech.
 
 ---
 
@@ -160,6 +169,7 @@ sesame-wake/
 │   ├── sounds.py
 │   ├── session.py       # Selenium SessionManager
 │   ├── listener.py      # Wake loop (PyAudio + openWakeWord)
+│   ├── tui.py           # Textual terminal UI
 │   └── cli.py           # main()
 ├── sesame_launcher.py   # PEP 723 entry + `uv run` shim
 ├── models/              # Put your .onnx wake model here (see .env.example)
