@@ -19,38 +19,11 @@ from sesame_wake.session import SessionManager
 
 
 def _load_wake_model() -> tuple[Model, str]:
-    """Load only ``models/<WAKE_MODEL>.onnx`` (validated in ``validate_config``)."""
+    """Load ``models/<WAKE_MODEL>.onnx`` (path validated by ``validate_config``)."""
     onnx_path = wake_model_path()
-    if onnx_path is None:
-        raise RuntimeError("wake_model_path() is None after validate_config()")
-    vad = 0.5
-    errors: list[str] = []
-
-    # openWakeWord expects str paths, not pathlib.Path.
-    builders: list[tuple[str, object]] = [
-        (
-            "wakeword_model_paths+inference_framework=onnx",
-            lambda p=onnx_path: Model(
-                wakeword_model_paths=[p],
-                vad_threshold=vad,
-                inference_framework="onnx",
-            ),
-        ),
-        (
-            "wakeword_model_paths (no inference_framework)",
-            lambda p=onnx_path: Model(wakeword_model_paths=[p], vad_threshold=vad),
-        ),
-    ]
-    for label, factory in builders:
-        try:
-            model = factory()
-            return model, next(iter(model.models.keys()))
-        except Exception as e:
-            errors.append(f"{label}: {e!r}")
-
-    raise RuntimeError(
-        "Could not load your models/ wake ONNX with openWakeWord. Tried:\n" + "\n".join(errors)
-    )
+    print(f"Loading wake model from: {onnx_path}")
+    model = Model(wakeword_model_paths=[onnx_path], vad_threshold=0.5)
+    return model, next(iter(model.models.keys()))
 
 
 def run_listener(session: SessionManager) -> None:

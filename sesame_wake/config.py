@@ -36,10 +36,10 @@ _WAKEWORD_DOWNLOAD_HINT = (
 
 def wake_model_path() -> str | None:
     """
-    Absolute path to ``models/<WAKE_MODEL>.onnx`` when ``WAKE_MODEL`` is set and the file exists.
+    Absolute path to ``models/<WAKE_MODEL>`` when ``WAKE_MODEL`` is set and the file exists.
 
-    ``WAKE_MODEL`` is the filename only (e.g. ``wakeword`` or ``wakeword.onnx``); parent paths
-    are ignored so the ONNX always lives under the repo ``models/`` directory.
+    ``WAKE_MODEL`` must be the full filename including extension (e.g. ``wakeword.onnx``);
+    parent paths are ignored so the ONNX always lives under the repo ``models/`` directory.
     """
     raw = os.getenv("WAKE_MODEL", "").strip()
     if not raw:
@@ -47,8 +47,6 @@ def wake_model_path() -> str | None:
     name = Path(raw).name
     if not name or name in (".", ".."):
         return None
-    if not name.endswith(".onnx"):
-        name = f"{name}.onnx"
     path = (_MODELS_DIR / name).resolve()
     try:
         path.relative_to(_MODELS_DIR.resolve())
@@ -65,15 +63,11 @@ def validate_config() -> None:
     if not raw:
         raise ValueError(
             "WAKE_MODEL must be set in .env to the ONNX filename inside models/ "
-            f"(e.g. WAKE_MODEL=wakeword). Community models: {_WAKEWORD_DOWNLOAD_HINT}"
+            f"(e.g. WAKE_MODEL=wakeword.onnx). Community models: {_WAKEWORD_DOWNLOAD_HINT}"
         )
-    resolved = wake_model_path()
-    if resolved is None:
-        name = Path(raw).name
-        if not name.endswith(".onnx"):
-            name = f"{name}.onnx"
+    if wake_model_path() is None:
         raise FileNotFoundError(
-            f"Expected wake model at models/{name} (from WAKE_MODEL={raw!r}). "
+            f"Expected wake model at models/{Path(raw).name} (from WAKE_MODEL={raw!r}). "
             f"File missing. See {_WAKEWORD_DOWNLOAD_HINT}"
         )
     for path in (START_SOUND, END_SOUND):
