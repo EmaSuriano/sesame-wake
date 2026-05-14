@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Lint and build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version-file: .python-version
+
+      - name: Lint
+        run: uv run --locked --only-group dev ruff check .
+
+      - name: Check formatting
+        run: uv run --locked --only-group dev ruff format --check .
+
+      - name: Compile Python files
+        run: uv run --locked --only-group dev python -m compileall sesame_wake sesame_launcher.py
+
+      - name: Build package
+        run: uv build --sdist --wheel
