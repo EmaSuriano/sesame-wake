@@ -7,6 +7,9 @@ from sesame_wake.config import LOG_FILE
 
 def setup_logging() -> logging.Logger:
     logger = logging.getLogger("sesame_wake")
+    if logger.handlers:
+        return logger
+
     logger.setLevel(logging.DEBUG)
 
     fmt = logging.Formatter(

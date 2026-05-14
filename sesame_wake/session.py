@@ -13,12 +13,10 @@ from sesame_wake.config import (
     AGENT_NAME,
     AGENT_SELECTOR,
     BUTTON_TIMEOUT,
-    END_SOUND,
     OPEN_RETRIES,
     RETRY_DELAY,
-    SELENIUM_PROFILE,
-    START_SOUND,
     TARGET_URL,
+    AppConfig,
 )
 from sesame_wake.logging_setup import log
 from sesame_wake.sounds import play_sound_async
@@ -32,12 +30,13 @@ class SessionManager:
     state-sync bug where `session_active` and `driver` could disagree.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, config: AppConfig) -> None:
+        self._config = config
         self._driver: webdriver.Chrome | None = None
 
     def _build_driver(self) -> webdriver.Chrome:
         options = Options()
-        options.add_argument(f"--user-data-dir={SELENIUM_PROFILE}")
+        options.add_argument(f"--user-data-dir={self._config.selenium_profile}")
         options.add_argument("--no-first-run")
         options.add_argument("--no-default-browser-check")
         return webdriver.Chrome(options=options)
@@ -56,7 +55,8 @@ class SessionManager:
         if not self._is_driver_alive():
             log.debug("Browser not alive — creating new driver.")
             self._driver = self._build_driver()
-        return self._driver  # type: ignore[return-value]
+        assert self._driver is not None
+        return self._driver
 
     @property
     def is_active(self) -> bool:
@@ -111,13 +111,13 @@ class SessionManager:
     def toggle(self) -> None:
         """Open if inactive, close if active."""
         if self.is_active:
-            play_sound_async(END_SOUND)
+            play_sound_async(self._config.end_sound)
             self.close()
         else:
-            play_sound_async(START_SOUND)
+            play_sound_async(self._config.start_sound)
             success = self.open()
             if not success:
-                play_sound_async(END_SOUND)
+                play_sound_async(self._config.end_sound)
 
     def shutdown(self) -> None:
         """Called on exit to ensure clean browser teardown."""

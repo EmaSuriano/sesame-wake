@@ -1,6 +1,7 @@
 """Microphone loop and openWakeWord inference."""
 
 import time
+from contextlib import suppress
 
 import numpy as np
 import pyaudio
@@ -12,22 +13,20 @@ from sesame_wake.config import (
     NEAR_MISS_THRESHOLD,
     SAMPLE_RATE,
     THRESHOLD,
-    wake_model_path,
+    AppConfig,
 )
 from sesame_wake.logging_setup import log
 from sesame_wake.session import SessionManager
 
 
-def _load_wake_model() -> tuple[Model, str]:
-    """Load ``models/<WAKE_MODEL>.onnx`` (path validated by ``validate_config``)."""
-    onnx_path = wake_model_path()
-    print(f"Loading wake model from: {onnx_path}")
-    model = Model(wakeword_model_paths=[onnx_path], vad_threshold=0.5)
+def _load_wake_model(config: AppConfig) -> tuple[Model, str]:
+    log.info("Loading wake model from: %s", config.wake_model_path)
+    model = Model(wakeword_model_paths=[str(config.wake_model_path)], vad_threshold=0.5)
     return model, next(iter(model.models.keys()))
 
 
-def run_listener(session: SessionManager) -> None:
-    model, score_key = _load_wake_model()
+def run_listener(session: SessionManager, config: AppConfig) -> None:
+    model, score_key = _load_wake_model(config)
 
     audio = pyaudio.PyAudio()
     stream = None
@@ -62,11 +61,9 @@ def run_listener(session: SessionManager) -> None:
 
     finally:
         if stream:
-            try:
+            with suppress(Exception):
                 stream.stop_stream()
                 stream.close()
-            except Exception:
-                pass
         audio.terminate()
 
 

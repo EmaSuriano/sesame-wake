@@ -20,3 +20,5 @@ sesame_wake.log
 
 models/*.onnx
 models/*.tflite
+
+sesame_wake.log

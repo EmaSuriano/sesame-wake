@@ -155,7 +155,7 @@ To train a brand-new phrase from scratch, use the [openWakeWord Colab notebook](
 ```
 sesame-wake/
 ├── sesame_wake/
-│   ├── config.py        # Env + constants, validate_config
+│   ├── config.py        # Env + constants, load_config
 │   ├── logging_setup.py
 │   ├── sounds.py
 │   ├── session.py       # Selenium SessionManager
