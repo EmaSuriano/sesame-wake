@@ -6,7 +6,7 @@ openWakeWord-compatible ONNX model, then uses Selenium to open or close Sesame i
 You must provide your own wake-word model. A large community collection is available in
 [home-assistant-wakewords-collection](https://github.com/fwartner/home-assistant-wakewords-collection/tree/main).
 
-https://github.com/user-attachments/assets/925273e5-3d3a-4595-8515-70164d23004a
+https://github.com/user-attachments/assets/b2f9c0b4-dced-4cbc-b8bc-54fcf6e1b556
 
 ## What It Does
 
